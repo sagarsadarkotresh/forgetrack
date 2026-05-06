@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.app-main {
+  background-image: var(--glow-cosmic);
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+/* Base Component Classes based on Design System */
+.card {
+  background: var(--bg-surface);
+  background-image: var(--card-gradient);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-8);
+}
+
+.card-hero {
+  border-radius: var(--radius-2xl);
+  padding: var(--space-10);
+}
+
+.btn-primary {
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-weight: 500;
+  font-size: 14px;
+  font-family: var(--font-body);
+  letter-spacing: -0.005em;
+}
+
+.btn-primary:hover {
+  background: #E5E5E7;
+}
+
+.btn-secondary {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+}
+
+.input {
+  background: var(--bg-surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-weight: 400;
+  font-size: 14px;
+  font-family: var(--font-body);
+  height: 44px;
+  width: 100%;
+}
+
+.input:focus {
+  border-color: var(--accent-glow);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 12px;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.pill-danger {
+  background: rgba(244, 63, 94, 0.12);
+  color: #F43F5E;
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
