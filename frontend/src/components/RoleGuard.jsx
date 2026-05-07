@@ -38,19 +38,26 @@ export default function RoleGuard() {
   const [profileError, setProfileError] = useState(null)
 
   const fetchProfile = async (userId) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('role, display_name, student_id')
-      .eq('id', userId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('role, display_name, student_id')
+        .eq('id', userId)
+        .maybeSingle()
 
-    if (error) {
+      if (error) throw error
+
+      if (!data) {
+        setProfileError("Your user profile was not found in the 'users' table. Please ask your mentor to link your account or check your USN.")
+      } else {
+        setProfile(data)
+      }
+    } catch (error) {
       console.error("Error fetching profile:", error)
       setProfileError(error.message)
-    } else if (data) {
-      setProfile(data)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   if (loading) {

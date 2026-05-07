@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Link2, FileText, Video, Plus, ExternalLink, Trash2, X } from 'lucide-react'
+import { useOutletContext } from 'react-router-dom'
 
 export default function Materials() {
+  const { profile } = useOutletContext() || {}
+  const isMentor = profile?.role === 'mentor'
+
   const [materials, setMaterials] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,13 +38,15 @@ export default function Materials() {
       if (materialsError) throw materialsError
       setMaterials(materialsData)
 
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id, topic, date')
-        .order('date', { ascending: false })
-      
-      if (sessionsError) throw sessionsError
-      setSessions(sessionsData)
+      if (isMentor) {
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from('sessions')
+          .select('id, topic, date')
+          .order('date', { ascending: false })
+        
+        if (sessionsError) throw sessionsError
+        setSessions(sessionsData)
+      }
     } catch (error) {
       console.error('Error fetching materials:', error)
     } finally {
@@ -49,6 +55,7 @@ export default function Materials() {
   }
 
   const handleAddMaterial = async (e) => {
+    if (!isMentor) return
     e.preventDefault()
     setSaving(true)
     try {
@@ -81,7 +88,7 @@ export default function Materials() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this material?')) return
+    if (!isMentor || !confirm('Are you sure you want to delete this material?')) return
     try {
       const { error } = await supabase.from('materials').delete().eq('id', id)
       if (error) throw error
@@ -102,7 +109,7 @@ export default function Materials() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="w-6 h-6 border-2 border-accent-glow border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-6 h-6 border-2 border-[#4b7cc2] border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
@@ -112,51 +119,55 @@ export default function Materials() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Class Materials</h1>
-          <p className="text-fg-secondary mt-1">Manage and share learning resources with students.</p>
+          <p className="text-fg-secondary mt-1">
+            {isMentor ? 'Manage and share learning resources with students.' : 'Access slides, recordings, and assignments.'}
+          </p>
         </div>
 
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-white text-black font-semibold px-6 py-2.5 rounded-xl flex items-center gap-2 hover:bg-gray-100 transition-colors"
-        >
-          {showAddForm ? <X size={18} /> : <Plus size={18} />}
-          {showAddForm ? 'Cancel' : 'Add Material'}
-        </button>
+        {isMentor && (
+          <button 
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-white text-black font-semibold px-6 py-2.5 rounded-xl flex items-center gap-2 hover:bg-gray-100 transition-colors"
+          >
+            {showAddForm ? <X size={18} /> : <Plus size={18} />}
+            {showAddForm ? 'Cancel' : 'Add Material'}
+          </button>
+        )}
       </div>
 
-      {showAddForm && (
-        <div className="bg-[#111115] border border-border-glow p-8 rounded-[24px] animate-slide-up shadow-2xl shadow-accent-glow/5">
+      {showAddForm && isMentor && (
+        <div className="bg-[#111115] border border-[#222228] p-8 rounded-[24px] animate-slide-up shadow-2xl">
           <form onSubmit={handleAddMaterial} className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold tracking-widest text-fg-secondary uppercase mb-2 ml-1">Title</label>
+                <label className="block text-[10px] font-bold tracking-widest text-[#8A8A94] uppercase mb-2 ml-1">Title</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. Week 1 Slides - React Fundamentals"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-glow"
+                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4b7cc2]"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold tracking-widest text-fg-secondary uppercase mb-2 ml-1">Link URL</label>
+                <label className="block text-[10px] font-bold tracking-widest text-[#8A8A94] uppercase mb-2 ml-1">Link URL</label>
                 <input 
                   type="url" 
                   required
                   placeholder="https://..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-glow"
+                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4b7cc2]"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold tracking-widest text-fg-secondary uppercase mb-2 ml-1">Type</label>
+                  <label className="block text-[10px] font-bold tracking-widest text-[#8A8A94] uppercase mb-2 ml-1">Type</label>
                   <select 
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-glow appearance-none"
+                    className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4b7cc2] appearance-none"
                   >
                     <option value="slides">Slides</option>
                     <option value="recording">Recording</option>
@@ -165,11 +176,11 @@ export default function Materials() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold tracking-widest text-fg-secondary uppercase mb-2 ml-1">Link to Session</label>
+                  <label className="block text-[10px] font-bold tracking-widest text-[#8A8A94] uppercase mb-2 ml-1">Link to Session</label>
                   <select 
                     value={sessionId}
                     onChange={(e) => setSessionId(e.target.value)}
-                    className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-glow appearance-none"
+                    className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4b7cc2] appearance-none"
                   >
                     <option value="">None / General</option>
                     {sessions.map(s => (
@@ -182,19 +193,19 @@ export default function Materials() {
 
             <div className="space-y-4 flex flex-col">
               <div>
-                <label className="block text-[10px] font-bold tracking-widest text-fg-secondary uppercase mb-2 ml-1">Description (Optional)</label>
+                <label className="block text-[10px] font-bold tracking-widest text-[#8A8A94] uppercase mb-2 ml-1">Description (Optional)</label>
                 <textarea 
                   rows="4"
                   placeholder="Short summary of what this covers..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-glow resize-none"
+                  className="w-full bg-[#0A0A0E] border border-[#222228] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4b7cc2] resize-none"
                 />
               </div>
               <button 
                 type="submit"
                 disabled={saving}
-                className="mt-auto w-full bg-accent-glow text-white font-bold rounded-xl py-3 hover:shadow-lg hover:shadow-accent-glow/20 transition-all disabled:opacity-50"
+                className="mt-auto w-full bg-white text-black font-bold rounded-xl py-3 hover:bg-gray-100 transition-all disabled:opacity-50"
               >
                 {saving ? 'Adding...' : 'Save Material'}
               </button>
@@ -206,16 +217,16 @@ export default function Materials() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {materials.length === 0 ? (
           <div className="col-span-full py-20 text-center bg-[#111115] border border-[#222228] rounded-[24px]">
-            <div className="text-fg-secondary mb-2">No materials found.</div>
-            <button onClick={() => setShowAddForm(true)} className="text-accent-glow text-sm font-semibold hover:underline">Upload your first resource</button>
+            <div className="text-[#8A8A94] mb-2">No materials found.</div>
+            {isMentor && <button onClick={() => setShowAddForm(true)} className="text-[#4b7cc2] text-sm font-semibold hover:underline">Upload your first resource</button>}
           </div>
         ) : materials.map((material) => (
           <div 
             key={material.id} 
-            className="group bg-[#111115] border border-[#222228] rounded-[24px] p-6 hover:border-accent-glow/30 transition-all flex flex-col relative"
+            className="group bg-[#111115] border border-[#222228] rounded-[24px] p-6 hover:border-[#4b7cc2]/30 transition-all flex flex-col relative"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className="bg-[#0A0A0E] p-3 rounded-2xl border border-[#222228] group-hover:border-accent-glow/20 transition-colors">
+              <div className="bg-[#0A0A0E] p-3 rounded-2xl border border-[#222228] group-hover:border-[#4b7cc2]/20 transition-colors">
                 {getTypeIcon(material.type)}
               </div>
               <div className="flex items-center gap-1">
@@ -223,32 +234,34 @@ export default function Materials() {
                   href={material.url} 
                   target="_blank" 
                   rel="noreferrer"
-                  className="p-2 text-fg-tertiary hover:text-white transition-colors"
+                  className="p-2 text-[#52525B] hover:text-white transition-colors"
                 >
                   <ExternalLink size={16} />
                 </a>
-                <button 
-                  onClick={() => handleDelete(material.id)}
-                  className="p-2 text-fg-tertiary hover:text-red-400 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {isMentor && (
+                  <button 
+                    onClick={() => handleDelete(material.id)}
+                    className="p-2 text-[#52525B] hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">{material.title}</h3>
+              <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-[#4b7cc2] transition-colors">{material.title}</h3>
               {material.description && (
-                <p className="text-xs text-fg-secondary mb-4 line-clamp-2 leading-relaxed">{material.description}</p>
+                <p className="text-xs text-[#8A8A94] mb-4 line-clamp-2 leading-relaxed">{material.description}</p>
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[#222228] flex items-center justify-between text-[10px] font-bold tracking-widest uppercase text-fg-tertiary">
+            <div className="mt-4 pt-4 border-t border-[#222228] flex items-center justify-between text-[10px] font-bold tracking-widest uppercase text-[#52525B]">
               <div className="flex items-center gap-1">
                 <CalendarIcon size={12} className="inline" />
                 {material.sessions?.date ? new Date(material.sessions.date).toLocaleDateString() : 'GENERAL'}
               </div>
-              <div className="text-fg-secondary">{material.type}</div>
+              <div className="text-[#8A8A94]">{material.type}</div>
             </div>
           </div>
         ))}

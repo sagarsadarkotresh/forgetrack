@@ -15,21 +15,77 @@ export default function Login() {
     setLoading(true)
     setError(null)
     
-    const cleanInput = emailOrUsn.trim()
-    const loginEmail = activeTab === 'student' ? `${cleanInput}@forge.local` : cleanInput
+    try {
+      const cleanInput = emailOrUsn.trim()
+      const cleanPassword = password.trim()
+      let loginEmail = cleanInput
+      
+      if (activeTab === 'student' && !cleanInput.includes('@')) {
+        loginEmail = `${cleanInput}@forge.local`
+      }
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: password.trim(),
-    })
+      // Attempt Login
+      let { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: cleanPassword,
+      })
 
-    if (authError) {
-      setError('Invalid credentials or account not found.')
+      // Auto-Registration for Students
+      if (authError && activeTab === 'student' && (authError.message.toLowerCase().includes('invalid login') || authError.message.toLowerCase().includes('not found'))) {
+        console.log('Student account not found. Attempting auto-registration...')
+        
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('id, name')
+          .eq('usn', cleanInput)
+          .single()
+
+        if (studentData) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: loginEmail,
+            password: cleanPassword,
+            options: {
+              data: {
+                role: 'student',
+                display_name: studentData.name,
+                student_id: studentData.id.toString()
+              }
+            }
+          })
+
+          if (!signUpError) {
+            if (signUpData.session) {
+              navigate('/')
+              return
+            } else {
+               const retry = await supabase.auth.signInWithPassword({
+                 email: loginEmail,
+                 password: cleanPassword,
+               })
+               if (!retry.error) {
+                 navigate('/')
+                 return
+               } else {
+                 throw new Error('Account created but login failed: ' + retry.error.message)
+               }
+            }
+          } else {
+            throw signUpError
+          }
+        } else {
+          throw new Error('USN ' + cleanInput + ' not found in Student List. Please check the USN.')
+        }
+      }
+
+      if (authError) throw authError
+
+      navigate('/')
+    } catch (err) {
+      console.error('Login Process Error:', err)
+      setError(err.message || 'An unexpected error occurred.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    navigate('/')
   }
 
   return (
