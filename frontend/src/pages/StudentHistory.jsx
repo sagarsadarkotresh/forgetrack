@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, ChevronDown, ChevronUp, User, Activity, ArrowUpDown } from 'lucide-react'
+import { Search, User, Grid } from 'lucide-react'
 
 export default function StudentHistory() {
   const [students, setStudents] = useState([])
@@ -8,8 +8,7 @@ export default function StudentHistory() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [expandedStudent, setExpandedStudent] = useState(null)
-  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' })
+  const [selectedStudentId, setSelectedStudentId] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -26,11 +25,11 @@ export default function StudentHistory() {
       
       if (studentsError) throw studentsError
 
-      // 2. Fetch all sessions (to know total possible sessions)
+      // 2. Fetch all sessions
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
-        .order('date', { ascending: false })
+        .order('date', { ascending: true }) // Ascending for heatmap timeline
       
       if (sessionsError) throw sessionsError
       setSessions(sessionsData)
@@ -59,6 +58,9 @@ export default function StudentHistory() {
       })
 
       setStudents(processed)
+      if (processed.length > 0) {
+        setSelectedStudentId(processed[0].id)
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -66,24 +68,12 @@ export default function StudentHistory() {
     }
   }
 
-  const handleSort = (key) => {
-    let direction = 'asc'
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
-    }
-    setSortConfig({ key, direction })
-  }
+  const filteredStudents = students.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.usn.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
-  const sortedStudents = [...students]
-    .filter(s => 
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      s.usn.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1
-      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1
-      return 0
-    })
+  const selectedStudent = students.find(s => s.id === selectedStudentId)
 
   if (loading) {
     return (
@@ -94,103 +84,108 @@ export default function StudentHistory() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Student History</h1>
-          <p className="text-fg-secondary mt-1">Track individual attendance performance across all sessions.</p>
-        </div>
-
-        <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary" />
-          <input 
-            type="text" 
-            placeholder="Search by name or USN..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-[#111115] border border-[#222228] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent-glow w-full md:w-80 transition-colors"
-          />
-        </div>
+    <div className="space-y-6 animate-fade-in h-[calc(100vh-120px)] flex flex-col">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Student History</h1>
+        <p className="text-fg-secondary mt-1">Track individual attendance performance across all sessions.</p>
       </div>
 
-      <div className="bg-[#111115] border border-[#222228] rounded-[24px] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#0A0A0E] text-fg-secondary text-[10px] font-bold tracking-widest uppercase border-b border-[#222228]">
-              <tr>
-                <th className="px-6 py-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('name')}>
-                  <div className="flex items-center gap-2">Student <ArrowUpDown size={12} /></div>
-                </th>
-                <th className="px-6 py-4">USN</th>
-                <th className="px-6 py-4">Branch</th>
-                <th className="px-6 py-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('percentage')}>
-                  <div className="flex items-center gap-2">Attendance <ArrowUpDown size={12} /></div>
-                </th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#222228]">
-              {sortedStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-fg-secondary italic">No students found matching your search.</td>
-                </tr>
-              ) : sortedStudents.map((student) => (
-                <>
-                  <tr 
-                    key={student.id} 
-                    className={`hover:bg-white/[0.02] transition-colors ${expandedStudent === student.id ? 'bg-white/[0.03]' : ''}`}
-                  >
-                    <td className="px-6 py-4 font-medium text-white">{student.name}</td>
-                    <td className="px-6 py-4 text-fg-secondary font-mono">{student.usn}</td>
-                    <td className="px-6 py-4 text-fg-secondary">{student.branch_code}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 max-w-[100px] h-1.5 bg-[#0A0A0E] rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${student.percentage >= 80 ? 'bg-emerald-500' : student.percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                            style={{ width: `${student.percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-white font-medium">{student.percentage}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => setExpandedStudent(expandedStudent === student.id ? null : student.id)}
-                        className="text-accent-glow hover:text-white transition-colors flex items-center gap-1 ml-auto"
-                      >
-                        {expandedStudent === student.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        {expandedStudent === student.id ? 'Hide Details' : 'View Details'}
-                      </button>
-                    </td>
-                  </tr>
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className="w-full lg:w-80 bg-[#111115] border border-[#222228] rounded-[24px] p-4 flex flex-col">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary" />
+            <input 
+              type="text" 
+              placeholder="Search USN or Name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#0A0A0E] border border-[#222228] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-accent-glow w-full transition-colors"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-2 mt-4 pr-1">
+            {filteredStudents.length === 0 ? (
+              <div className="text-center text-fg-secondary text-sm py-4">No students found.</div>
+            ) : filteredStudents.map((student) => (
+              <div 
+                key={student.id}
+                onClick={() => setSelectedStudentId(student.id)}
+                className={`p-4 rounded-xl cursor-pointer transition-colors ${selectedStudentId === student.id ? 'bg-[#1C1C24] border border-[#3b2d63]' : 'bg-[#0A0A0E] border border-[#222228] hover:border-[#3b2d63]'}`}
+              >
+                <div className="font-medium text-white truncate">{student.name}</div>
+                <div className="text-xs text-fg-secondary font-mono truncate">{student.usn}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 bg-[#111115] border border-[#222228] rounded-[24px] p-6 overflow-y-auto flex flex-col">
+          {selectedStudent ? (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="bg-[#0A0A0E] border border-[#222228] rounded-2xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                <div className="w-16 h-16 rounded-full bg-[#1C1C24] flex items-center justify-center text-white shrink-0">
+                  <User size={32} />
+                </div>
+                <div className="flex-1 text-center sm:text-left">
+                  <h2 className="text-2xl font-bold text-white">{selectedStudent.name}</h2>
+                  <p className="text-fg-secondary font-mono">{selectedStudent.usn} • {selectedStudent.branch_code || 'CS'}</p>
                   
-                  {expandedStudent === student.id && (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 bg-[#0A0A0E]/50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          {sessions.map(session => {
-                            const att = attendanceRecords.find(a => a.student_id === student.id && a.session_id === session.id)
-                            return (
-                              <div key={session.id} className="bg-[#111115] border border-[#222228] p-4 rounded-2xl flex items-center justify-between">
-                                <div>
-                                  <div className="text-[10px] font-bold text-fg-tertiary uppercase">{new Date(session.date).toLocaleDateString()}</div>
-                                  <div className="text-xs text-white font-medium truncate max-w-[120px]">{session.topic}</div>
-                                </div>
-                                <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${att?.present ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                  {att?.present ? 'Present' : 'Absent'}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                  <div className="flex gap-4 mt-4 justify-center sm:justify-start">
+                    <div className="bg-[#1C1C24] border border-[#222228] rounded-xl p-4 flex-1 max-w-[150px]">
+                      <div className="text-xs text-fg-tertiary uppercase font-bold tracking-wider">Attendance</div>
+                      <div className="text-2xl font-bold text-white mt-1">{selectedStudent.percentage}%</div>
+                    </div>
+                    <div className="bg-[#1C1C24] border border-[#222228] rounded-xl p-4 flex-1 max-w-[150px]">
+                      <div className="text-xs text-fg-tertiary uppercase font-bold tracking-wider">Present</div>
+                      <div className="text-2xl font-bold text-white mt-1">{selectedStudent.presentCount} / {selectedStudent.totalSessions}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Heatmap Section */}
+              <div className="bg-[#0A0A0E] border border-[#222228] rounded-2xl p-6 flex-1">
+                <h3 className="text-sm font-bold text-white mb-6">Attendance Heatmap</h3>
+                
+                {sessions.length === 0 ? (
+                  <div className="text-center text-fg-secondary py-8">No sessions found.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {sessions.map(session => {
+                      const att = attendanceRecords.find(a => a.student_id === selectedStudent.id && a.session_id === session.id);
+                      const isPresent = att?.present;
+                      
+                      return (
+                        <div 
+                          key={session.id}
+                          className={`w-6 h-6 rounded-md border transition-all cursor-pointer ${isPresent ? 'bg-emerald-500/20 border-emerald-500/40 hover:bg-emerald-500/40' : 'bg-red-500/10 border-red-500/20 hover:bg-red-500/30'}`}
+                          title={`${new Date(session.date).toLocaleDateString()}: ${session.topic} (${isPresent ? 'Present' : 'Absent'})`}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 mt-6 text-xs text-fg-tertiary">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 bg-emerald-500/20 border border-emerald-500/40 rounded-sm"></div>
+                    <span>Present</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 bg-red-500/10 border border-red-500/20 rounded-sm"></div>
+                    <span>Absent</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-fg-secondary">
+              Select a student to view details.
+            </div>
+          )}
         </div>
       </div>
     </div>

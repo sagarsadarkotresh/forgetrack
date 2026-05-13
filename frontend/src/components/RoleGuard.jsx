@@ -38,26 +38,38 @@ export default function RoleGuard() {
   const [profileError, setProfileError] = useState(null)
 
   const fetchProfile = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role, display_name, student_id')
-        .eq('id', userId)
-        .maybeSingle()
+    setLoading(true);
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('role, display_name, student_id')
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (error) throw error
+        if (error) throw error;
 
-      if (!data) {
-        setProfileError("Your user profile was not found in the 'users' table. Please ask your mentor to link your account or check your USN.")
-      } else {
-        setProfile(data)
+        if (data) {
+          setProfile(data);
+          setProfileError(null);
+          setLoading(false);
+          return;
+        }
+        
+        console.log(`Profile not found, waiting 1s... (Attempt ${attempts + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        setProfileError(error.message);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching profile:", error)
-      setProfileError(error.message)
-    } finally {
-      setLoading(false)
     }
+    
+    setProfileError("Your user profile was not found in the 'users' table. Please ask your mentor to link your account or check your USN.");
+    setLoading(false);
   }
 
   if (loading) {
